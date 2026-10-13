@@ -1,0 +1,13 @@
+{
+  "files": 79,
+  "totalBytes": 331214771,
+  "largestFileBytes": 5592442,
+  "maxFileLimit": 26214400,
+  "totalLimit": 1000000000,
+  "resourceChunksVerified": true,
+  "resourcePackSha256": "f57c45bdd7f8a081d50d2e2ff81be1eb4aaf49fcb048af62bf9508a723d86dfd",
+  "engineModulesValidated": true,
+  "backendRequired": false,
+  "runtimeVersion": "1.4.0",
+  "note": "These are package checks, not a game-play certification."
+}

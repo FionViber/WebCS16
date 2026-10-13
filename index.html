@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: blob: 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src 'self' blob: data:; img-src data: blob:; media-src blob: data:; worker-src blob:; base-uri 'none'; object-src 'none'">
+<title>反恐精英 1.6 · 静态单机版</title>
+<style>
+:root{color-scheme:dark;font-family:"Segoe UI","Microsoft YaHei",Arial,sans-serif;background:#171c19;color:#e4e8df}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}button,input,select{font:inherit}button{cursor:pointer;border:1px solid #687561;background:#3d4a38;color:#f2f3e9;padding:12px 18px;border-radius:4px}button:hover{background:#4c5d44}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #d4a658;outline-offset:3px}
+#setup{max-width:950px;margin:auto;padding:55px 35px 25px}.eyebrow{letter-spacing:.2em;font-size:12px;color:#a6b29e}h1{font-size:clamp(30px,5vw,54px);font-weight:650;line-height:1.18;margin:19px 0 15px}h1 small{display:block;font-size:20px;color:#c0cbbb;letter-spacing:.1em;margin-top:13px}.intro{color:#b8c2b0;line-height:1.85;max-width:680px}fieldset{border:1px solid #485443;padding:24px;margin:30px 0 24px;border-radius:7px;display:grid;grid-template-columns:1fr 1fr;gap:23px;background:#20271f}legend{padding:0 9px;color:#d1dcc8}label{display:flex;flex-direction:column;gap:9px;color:#c4cebe;font-size:14px}select,input{padding:10px 12px;border:1px solid #62705b;border-radius:4px;background:#171e17;color:#f0f3e9;width:100%}.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}#start{background:#be9452;border-color:#be9452;color:#121710;font-weight:700;min-width:180px}#start:hover{background:#d1a760}#status{line-height:1.7;color:#ced7c7;margin:23px 0 10px;overflow-wrap:anywhere}progress{width:100%;height:12px;accent-color:#bd995a}#hint{font-size:13px;color:#9eaf98;line-height:1.85;margin-top:20px}.footer{border-top:1px solid #46503e;margin-top:32px;padding-top:19px;font-size:12px;line-height:1.8;color:#99a792}#toolbar{display:none;align-items:center;gap:10px;padding:9px 14px;background:#20271f;border-bottom:1px solid #485443;flex-wrap:wrap}#toolbar button{font-size:13px;padding:7px 12px}#game-state{margin-left:auto;font-size:12px;color:#b5c7a8}#canvas{display:none;width:100vw;height:calc(100vh - 58px);background:#000;outline:none}#canvas:fullscreen{width:100vw;height:100vh}body.playing #setup{display:none}body.playing #toolbar{display:flex}body.playing #canvas{display:block}#console-panel{display:none;position:fixed;bottom:15px;left:3%;width:94%;max-height:42vh;background:#0e130ff5;border:1px solid #758968;padding:13px;z-index:10}#console-panel.open{display:block}#log{font:12px/1.6 Consolas,monospace;white-space:pre-wrap;overflow:auto;max-height:29vh;color:#bddaaf;margin:0}#command-form{display:flex;gap:8px;margin-top:9px}#command{flex:1;min-width:0}#command-form button{font-size:12px;padding:6px 10px}.error{color:#ffb0a0!important}#test-note{color:#d1b780;font-size:13px;line-height:1.75}@media(max-width:600px){#setup{padding:28px 20px}fieldset{grid-template-columns:1fr;padding:18px}#game-state{width:100%;margin:0}}
+</style>
+</head>
+<body>
+<main id="setup">
+<div class="eyebrow">WEBXASH ENGINE · STATIC EDITION · 1.4</div>
+<h1>反恐精英 1.6<small>原版玩法 · 机器人对战</small></h1>
+<p class="intro">自动加载游戏资源，无需导入文件。游戏与机器人均在浏览器中运行。<br>同一文件夹支持本地双击，也支持发布到静态网站。</p>
+<fieldset id="settings"><legend>游戏设置</legend>
+<label>地图<select id="map"><option value="de_dust2">沙漠 2 · de_dust2</option><option value="de_dust">沙漠 · de_dust</option></select></label>
+<label>机器人数量<select id="bots"><option value="0">不添加机器人</option><option value="3">3 个</option><option value="7" selected>7 个</option><option value="11">11 个</option></select></label>
+<label>机器人难度<select id="difficulty"><option value="0">简单</option><option value="1" selected>普通</option><option value="2">困难</option></select></label>
+<label>玩家名称<input id="player" value="Player" maxlength="24" autocomplete="off"></label>
+</fieldset>
+<div class="actions"><button id="start" disabled>检查游戏资源</button><button class="logs-button" type="button">查看日志</button></div>
+<div id="status" role="status" aria-live="polite">正在检查游戏包……</div><progress id="progress" max="100" value="0"></progress>
+<p id="hint">启动后在游戏内选择队伍。移动：W/A/S/D。射击：鼠标左键。购买：B。换队：M。蹲下：C。全屏使用页面按钮，Esc 释放鼠标。</p>
+<p id="mode" class="intro">正在识别运行方式……</p>
+<div class="footer">不包含 AMXX 或联机服务。请保留整个文件夹的目录结构。<br>非官方浏览器移植。原游戏与素材属于各自权利人。</div>
+</main>
+<header id="toolbar"><span>反恐精英 1.6</span><button id="fullscreen">全屏</button><button id="restart">返回设置</button><button class="logs-button">日志 / 控制台</button><span id="game-state">单机模式</span></header>
+<canvas id="canvas" width="1280" height="720" tabindex="0" aria-label="游戏画面"></canvas>
+<section id="console-panel" aria-label="运行日志"><pre id="log"></pre><form id="command-form"><input id="command" placeholder="引擎命令，例如 status 或 yb list" autocomplete="off" aria-label="控制台命令"><button type="submit">执行</button><button id="close-console" type="button">关闭</button></form></section>
+<script src="static-libraries.js?v=1.4.0"></script>
+<script src="launcher.js?v=1.4.0"></script>
+</body>
+</html>

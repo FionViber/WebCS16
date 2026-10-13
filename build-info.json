@@ -1,0 +1,85 @@
+{
+  "generated": "2026-10-13T14:08:54.354Z",
+  "builderVersion": "1.4.0",
+  "packageSources": [
+    {
+      "repository": "oharashane/cs16-web",
+      "commit": "2a69d228b01fc49b87eb5836f632a4f6fa16811e",
+      "member": "web/vendor/xash3d-fwgs-1.2.2.tgz",
+      "size": 3540860,
+      "gitBlob": "6b1359f31520403842918531c9de476463263af4",
+      "integrity": "sha512-N2w5uSs3OXDGuvgryuKO42LbCQUOveYXDUr9NqmbRnjxpEjVKzhHC+4sTJe6zUTPtiIZSCfd+rHpEa92Da4Vwg=="
+    },
+    {
+      "repository": "oharashane/cs16-web",
+      "commit": "2a69d228b01fc49b87eb5836f632a4f6fa16811e",
+      "member": "web/vendor/cs16-client-0.1.2.tgz",
+      "size": 15017050,
+      "gitBlob": "7d2a61ddf856410b97169e3dababb1919cf16ac2",
+      "integrity": "sha512-0u4YL72tBOqowMpPuCg16TwJBk6vLRmWZiKDVejTB32gb6gmyRicnzQmzUi4r9sUctuzJmvwlYyEEgYFsOizjw=="
+    }
+  ],
+  "gameArchive": {
+    "repository": "Igu2012/cs1.6-browser",
+    "size": 426826452,
+    "sha256": "f913a48ca4955a98712e4037ae6a8d647bf5b0047ebd081b78517a77652ec6b4"
+  },
+  "engineVersion": "1.2.2",
+  "csVersion": "0.1.2",
+  "engineModules": [
+    {
+      "name": "xash.wasm",
+      "bytes": 3923825,
+      "sha256": "1066cca502a5659b668611bc3fe2a867301e30bbe7e3c923891318a66e5ae8f2"
+    },
+    {
+      "name": "filesystem_stdio.wasm",
+      "bytes": 56427,
+      "sha256": "1be979f8cfae08192b59f6c08e8b27eb2eb56a1499219ae8b35106e85811e8f1"
+    },
+    {
+      "name": "libref_webgl2.wasm",
+      "bytes": 210106,
+      "sha256": "325c1102d2865fed1028d8413f2b553e892ac6f18eaf5701990d81559e057f52"
+    },
+    {
+      "name": "cl_dlls/menu_emscripten_wasm32.wasm",
+      "bytes": 494161,
+      "sha256": "d5802742d32b9295efa7479114798c832248c758ee4474af0dafaa2773d7d086"
+    },
+    {
+      "name": "cl_dlls/client_emscripten_wasm32.wasm",
+      "bytes": 489444,
+      "sha256": "3a8b26a14ce562ab3bcfbf2a8f57c2822ae04c2a134caedbb03355003ea5ecf7"
+    },
+    {
+      "name": "dlls/cs_emscripten_wasm32.wasm",
+      "bytes": 1323625,
+      "sha256": "9c838823ddec4f65986a0f8e715d7b22f01e2e9dc9de59fe03752bcdebdc0b97"
+    },
+    {
+      "name": "dlls/yapb_emscripten_wasm32.wasm",
+      "bytes": 1138334,
+      "sha256": "49ea57f33a0c57dcdf9208719caca52eb61013da470ac8dc7d370658166c9e30"
+    }
+  ],
+  "packaging": "Local classic scripts + embedded WebAssembly + gzip asset stream",
+  "gameplayValidated": false,
+  "runtimeVersion": "1.4.0",
+  "engineRuntimeSha256": "78430fc8aadb43ba35ed33ba60a82a33ada3e02fb96237a3fad9a70a2a716cb2",
+  "repairedAt": "2026-10-13T14:08:55.996Z",
+  "resourcePackSha256": "f57c45bdd7f8a081d50d2e2ff81be1eb4aaf49fcb048af62bf9508a723d86dfd",
+  "sourceResourcesPreserved": true,
+  "gameEngineBinariesChanged": false,
+  "libraryTransport": "resident bytes with canonical dynamic-library IDs",
+  "startupEnvironment": {
+    "XASH3D_GAMELIBPATH": "/__cs_modules__/cs_emscripten_wasm32.wasm"
+  },
+  "entry": "index.html",
+  "supportedDelivery": [
+    "file:",
+    "http:",
+    "https:"
+  ],
+  "distribution": "single-cmd-preparer"
+}
