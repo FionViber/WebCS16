@@ -3,6 +3,7 @@
   'use strict';
   const VERSION = '1.4.0';
   const $ = id => document.getElementById(id);
+  const uiText = key => globalThis.CSLauncherUI?.t?.(key) || key;
   const out = $('log');
   const logs = [];
   let engine = null, running = false, initializing = false;
@@ -18,18 +19,19 @@
     console.log('[CS16]', text);
   }
   function status(text, value) {
+    delete $('status').dataset.i18n;
     $('status').textContent = text;
     if (value !== undefined) $('progress').value = value;
   }
   function fail(error) {
     const raw = error && error.message ? error.message : String(error);
-    const message = raw === 'Infinity' || raw === '-Infinity' ? '引擎终止。最后一条诊断：' + (nativeFailure || '请查看完整日志。') : raw;
-    log('错误：' + message);
+    const message = raw === 'Infinity' || raw === '-Infinity' ? 'Engine terminated. Last diagnostic: ' + (nativeFailure || 'See the full log.') : raw;
+    log('Error: ' + message);
     $('status').classList.add('error');
     status(message);
-    $('game-state').textContent = '运行错误，请查看日志';
+    $('game-state').textContent = 'Error';
     $('console-panel').classList.add('open');
-    if (!running) { $('start').disabled = true; $('start').textContent = '未能启动'; }
+    if (!running) { $('start').disabled = true; $('start').dataset.i18n = 'failed'; $('start').textContent = uiText('failed'); }
   }
   function decodeBase64(text) {
     const str = atob(text);
@@ -38,14 +40,14 @@
     return bytes;
   }
   function loadScript(filename) {
-    if (!/^[a-zA-Z0-9_./-]+$/.test(filename) || filename.includes('..') || filename.startsWith('/')) return Promise.reject(new Error('无效的资源脚本路径。'));
+    if (!/^[a-zA-Z0-9_./-]+$/.test(filename) || filename.includes('..') || filename.startsWith('/')) return Promise.reject(new Error('Invalid resource script path.'));
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
       const scriptURL = new URL(filename, assetBase);
-      scriptURL.searchParams.set('v', VERSION);
+      scriptURL.searchParams.set('v', filename === 'engine.js' ? '1.5.0' : VERSION);
       script.src = scriptURL.href;
       script.onload = () => { script.remove(); resolve(); };
-      script.onerror = () => { script.remove(); reject(new Error('无法读取 ' + filename + '。请确认整个站点目录完整，且资源位于 index.html 所在目录下。')); };
+      script.onerror = () => { script.remove(); reject(new Error('Unable to read ' + filename + '. Verify that the complete site is deployed.')); };
       document.head.appendChild(script);
     });
   }
@@ -58,7 +60,7 @@
     const parts = [];
     let expected = -1, received = null;
     globalThis.CSReceiveChunk = (index, encoded) => {
-      if (index !== expected || received !== null) throw new Error('资源分片顺序错误。');
+      if (index !== expected || received !== null) throw new Error('Resource chunk order is invalid.');
       received = decodeBase64(encoded);
     };
     try {
@@ -66,11 +68,11 @@
         expected = i; received = null;
         const entry = manifest.chunks[i];
         await loadScript(entry.file);
-        if (!received || received.byteLength !== entry.bytes) throw new Error('资源分片缺失或大小不符：' + entry.file);
+        if (!received || received.byteLength !== entry.bytes) throw new Error('Resource chunk is missing or has the wrong size: ' + entry.file);
         const digest = await sha256(received);
-        if (digest && digest !== entry.sha256) throw new Error('资源分片校验失败：' + entry.file);
+        if (digest && digest !== entry.sha256) throw new Error('Resource chunk verification failed: ' + entry.file);
         parts.push(received);
-        status('加载游戏资源 ' + (i + 1) + ' / ' + manifest.chunks.length, 5 + 38 * (i + 1) / manifest.chunks.length);
+        status(uiText('loadingResources') + ' ' + (i + 1) + ' / ' + manifest.chunks.length, 5 + 38 * (i + 1) / manifest.chunks.length);
         await frame();
       }
       return new Blob(parts, { type: 'application/gzip' });
@@ -79,13 +81,13 @@
   class StreamReader {
     constructor(stream) { this.reader = stream.getReader(); this.chunk = new Uint8Array(); this.position = 0; }
     async exact(size) {
-      if (size < 0 || size > 134217728) throw new Error('资源记录大小超出限制。');
+      if (size < 0 || size > 134217728) throw new Error('Resource record is too large.');
       const result = new Uint8Array(size);
       let offset = 0;
       while (offset < size) {
         if (this.position === this.chunk.length) {
           const step = await this.reader.read();
-          if (step.done) throw new Error('资源流意外结束。');
+          if (step.done) throw new Error('Resource stream ended unexpectedly.');
           this.chunk = step.value; this.position = 0;
         }
         const length = Math.min(size - offset, this.chunk.length - this.position);
@@ -95,8 +97,8 @@
       return result;
     }
     async finish() {
-      if (this.position !== this.chunk.length) throw new Error('资源结束标记后存在额外数据。');
-      for (;;) { const r = await this.reader.read(); if (r.done) return; if (r.value.length) throw new Error('资源流尾部无效。'); }
+      if (this.position !== this.chunk.length) throw new Error('Unexpected data follows the resource terminator.');
+      for (;;) { const r = await this.reader.read(); if (r.done) return; if (r.value.length) throw new Error('Invalid data after the resource stream.'); }
     }
   }
   function safePath(name) {
@@ -109,7 +111,7 @@
   async function mountPack(blob, FS, manifest) {
     const stream = new StreamReader(blob.stream().pipeThrough(new DecompressionStream('gzip')));
     const text = new TextDecoder();
-    if (text.decode(await stream.exact(8)) !== 'CSOF0001') throw new Error('不是本启动器支持的资源包。');
+    if (text.decode(await stream.exact(8)) !== 'CSOF0001') throw new Error('This resource package is not supported by the launcher.');
     let count = 0, total = 0;
     const names = new Set();
     for (;;) {
@@ -117,79 +119,79 @@
       const view = new DataView(header.buffer, header.byteOffset, 8);
       const nameSize = view.getUint32(0, true), dataSize = view.getUint32(4, true);
       if (!nameSize && !dataSize) break;
-      if (!nameSize || nameSize > 4096 || count >= 100000) throw new Error('资源包目录无效。');
+      if (!nameSize || nameSize > 4096 || count >= 100000) throw new Error('Invalid resource package directory.');
       const name = text.decode(await stream.exact(nameSize));
-      if (!safePath(name) || names.has(name.toLowerCase())) throw new Error('资源路径无效或重复：' + name);
+      if (!safePath(name) || names.has(name.toLowerCase())) throw new Error('Invalid or duplicate resource path: ' + name);
       names.add(name.toLowerCase());
       const bytes = await stream.exact(dataSize);
       total += bytes.byteLength;
-      if (total > manifest.uncompressedBytes) throw new Error('资源总大小超过清单。');
+      if (total > manifest.uncompressedBytes) throw new Error('Resource total exceeds the manifest.');
       writeFile(FS, '/rodir/' + name, bytes);
       count++;
       if (count % 30 === 0) {
-        status('准备游戏文件 ' + count + ' / ' + manifest.files, 55 + 40 * count / manifest.files);
+        status(uiText('preparingFiles') + ' ' + count + ' / ' + manifest.files, 55 + 40 * count / manifest.files);
         await frame();
       }
     }
     await stream.finish();
-    if (count !== manifest.files || total !== manifest.uncompressedBytes) throw new Error('解包后的资源总数或大小与清单不一致。');
-    log('已挂载 ' + count + ' 个资源文件。');
+    if (count !== manifest.files || total !== manifest.uncompressedBytes) throw new Error('Unpacked resource count or size does not match the manifest.');
+    log('Mounted ' + count + ' resource files.');
   }
   async function loadLibraries() {
     await loadScript('engine-manifest.js');
     const manifest = globalThis.CS_ENGINE_MANIFEST;
-    if (!manifest || manifest.schema !== 1 || !Array.isArray(manifest.libraries)) throw new Error('引擎清单无效。请重新应用修复文件。');
+    if (!manifest || manifest.schema !== 1 || !Array.isArray(manifest.libraries)) throw new Error('Invalid engine manifest. Rebuild the ready package.');
     const files = new Map();
     let expectedName = '', expectedIndex = -1, received = null;
     globalThis.CSReceiveEngine = function (name, index, encoded) {
-      if (name !== expectedName || index !== expectedIndex || received !== null) throw new Error('引擎分片与清单不符。');
+      if (name !== expectedName || index !== expectedIndex || received !== null) throw new Error('Engine chunk does not match the manifest.');
       received = decodeBase64(encoded);
     };
     try {
       for (let i = 0; i < manifest.libraries.length; i++) {
         const lib = manifest.libraries[i];
-        if (!/^[a-zA-Z0-9_./-]+\.wasm$/.test(lib.name) || lib.name.includes('..') || !Number.isSafeInteger(lib.bytes) || lib.bytes < 8 || lib.bytes > 134217728) throw new Error('引擎模块清单无效。');
-        if (files.has(lib.name) || !Array.isArray(lib.chunks) || !lib.chunks.length) throw new Error('引擎模块重复或未分片。');
+        if (!/^[a-zA-Z0-9_./-]+\.wasm$/.test(lib.name) || lib.name.includes('..') || !Number.isSafeInteger(lib.bytes) || lib.bytes < 8 || lib.bytes > 134217728) throw new Error('Invalid engine module manifest.');
+        if (files.has(lib.name) || !Array.isArray(lib.chunks) || !lib.chunks.length) throw new Error('Duplicate or unchunked engine module.');
         const bytes = new Uint8Array(lib.bytes);
         let offset = 0;
         for (let n = 0; n < lib.chunks.length; n++) {
           expectedName = lib.name; expectedIndex = n; received = null;
           const part = lib.chunks[n];
           await loadScript(part.file);
-          if (!received || received.length !== part.bytes || offset + received.length > bytes.length) throw new Error('引擎分片大小不符：' + part.file);
+          if (!received || received.length !== part.bytes || offset + received.length > bytes.length) throw new Error('Engine chunk has the wrong size: ' + part.file);
           const digest = await sha256(received);
-          if (digest && digest !== part.sha256) throw new Error('引擎分片校验失败：' + part.file);
+          if (digest && digest !== part.sha256) throw new Error('Engine chunk verification failed: ' + part.file);
           bytes.set(received, offset); offset += received.length;
           received = null;
         }
-        if (offset !== bytes.length) throw new Error('引擎模块不完整：' + lib.name);
+        if (offset !== bytes.length) throw new Error('Engine module is incomplete: ' + lib.name);
         const digest = await sha256(bytes);
-        if (digest && digest !== lib.sha256) throw new Error('引擎模块校验失败：' + lib.name);
-        if (!WebAssembly.validate(bytes)) throw new Error('浏览器不能识别模块：' + lib.name);
+        if (digest && digest !== lib.sha256) throw new Error('Engine module verification failed: ' + lib.name);
+        if (!WebAssembly.validate(bytes)) throw new Error('The browser cannot validate the module: ' + lib.name);
         files.set(lib.name, bytes);
-        status('加载引擎模块 ' + (i + 1) + ' / ' + manifest.libraries.length, 43 + 10 * (i + 1) / manifest.libraries.length);
+        status(uiText('loadingEngine') + ' ' + (i + 1) + ' / ' + manifest.libraries.length, 43 + 10 * (i + 1) / manifest.libraries.length);
         await frame();
       }
     } finally { delete globalThis.CSReceiveEngine; }
     const hooks = globalThis.CSStaticLibraries.create(files);
-    log('引擎模块已校验。使用内存加载，不使用 blob 模块地址。');
+    log('Engine modules verified. Using in-memory loading.');
     return { files, hooks };
   }
   function restrictConnections() {
     // Ordinary same-site static asset requests remain allowed by the HTML CSP.
     // Multiplayer transports are disabled independently of the page protocol.
     globalThis.WebSocket = class DisabledWebSocket {
-      constructor() { throw new Error('此版本只运行单机对战，不连接联机服务器。'); }
+      constructor() { throw new Error('This build only supports offline play.'); }
       static CONNECTING = 0; static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
     };
-    const disabled = function () { throw new Error('此版本未启用 WebRTC 联机。'); };
+    const disabled = function () { throw new Error('WebRTC multiplayer is disabled in this build.'); };
     for (const key of ['RTCPeerConnection', 'webkitRTCPeerConnection', 'mozRTCPeerConnection']) {
       if (key in globalThis) { try { globalThis[key] = disabled; } catch { /* CSP still restricts connections. */ } }
     }
   }
   function command(value) {
-    if (!engine || !running) { log('游戏尚未启动。'); return; }
-    if (typeof engine.ccall !== 'function') throw new Error('此引擎未导出控制台调用接口。');
+    if (!engine || !running) { log('The game is not running.'); return; }
+    if (typeof engine.ccall !== 'function') throw new Error('The engine does not expose the console interface.');
     engine.ccall('Cmd_ExecuteString', null, ['string'], [value]);
   }
   function remember() {
@@ -197,26 +199,26 @@
   }
   async function start() {
     if (initializing || running) return;
-    initializing = true; $('start').disabled = true; $('settings').disabled = true;
+    initializing = true; $('start').disabled = true; $('settings').disabled = true; $('language').disabled = true;
     try {
-      if (typeof WebAssembly !== 'object') throw new Error('浏览器不支持 WebAssembly。');
-      if (typeof DecompressionStream !== 'function') throw new Error('浏览器缺少资源解压功能，请使用桌面版 Chrome 或 Edge。');
+      if (typeof WebAssembly !== 'object') throw new Error('This browser does not support WebAssembly.');
+      if (typeof DecompressionStream !== 'function') throw new Error('This browser lacks the required decompression API. Use current Chrome or Edge.');
       const probe = document.createElement('canvas').getContext('webgl2');
-      if (!probe) throw new Error('无法创建 WebGL 2 图形上下文，请检查浏览器硬件加速。');
+      if (!probe) throw new Error('Unable to create a WebGL 2 context. Check hardware acceleration.');
       const lose = probe.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
       const manifest = globalThis.CS_OFFLINE_MANIFEST;
       const map = $('map').value;
-      if (!manifest.maps.includes(map)) throw new Error('所选地图未包含在资源包内。');
+      if (!manifest.maps.includes(map)) throw new Error('The selected map is not included in the resource package.');
       const bots = Math.max(0, Math.min(14, Number($('bots').value)));
       const difficulty = Math.max(0, Math.min(3, Number($('difficulty').value) || 0));
       const player = $('player').value.replace(/[^\w -]/g, '').slice(0, 24) || 'Player';
       remember();
       restrictConnections();
       const pack = await getPack(manifest);
-      status('准备网页引擎', 45);
+      status(uiText('preparingEngine'), 45);
       const libs = await loadLibraries();
       await loadScript('engine.js');
-      if (typeof globalThis.Xash3D !== 'function') throw new Error('网页引擎没有正确加载。');
+      if (typeof globalThis.Xash3D !== 'function') throw new Error('The web engine did not load correctly.');
       const args = [
         '-windowed', '-game', 'cstrike', '-console', '-ref', 'webgl2', '-noip', '-nomaster',
         '-dll', '@yapb', '+_vgui_menus', '0', '+sv_lan', '1', '+maxplayers', '16',
@@ -232,26 +234,26 @@
           'cl_dlls/menu_emscripten_wasm32.wasm', 'dlls/cs_emscripten_wasm32.wasm',
           'cl_dlls/client_emscripten_wasm32.wasm', 'dlls/yapb_emscripten_wasm32.wasm',
         ],
-        print: log, printErr: log, onAbort: reason => fail(new Error('引擎启动中止：' + reason)),
-        onExit: code => { if (code) fail(new Error('引擎退出，状态码 ' + code + '。' + (nativeFailure || ''))); },
+        print: log, printErr: log, onAbort: reason => fail(new Error('Engine aborted: ' + reason)),
+        onExit: code => { if (code) fail(new Error('Engine exited with status ' + code + '. ' + (nativeFailure || ''))); },
       });
       engine = result && result.Module ? result.Module : result;
-      if (!engine || !engine.__csStaticReady || engine.__csRuntimeVersion !== VERSION) throw new Error('引擎文件不完整。请重新运行 CS16_OneClick.cmd 后打开 CS16-Ready。');
+      if (!engine || !engine.__csStaticReady || engine.__csRuntimeVersion !== VERSION) throw new Error('Engine files are incomplete. Rebuild the ready package.');
       const FS = (result && result.FS) || (engine && engine.FS);
-      if (!FS || !engine || typeof engine.callMain !== 'function') throw new Error('引擎初始化接口不匹配，无法继续启动。');
+      if (!FS || !engine || typeof engine.callMain !== 'function') throw new Error('The engine initialization interface is incompatible.');
       FS.mkdirTree('/rodir'); FS.mkdirTree('/rwdir'); FS.mkdirTree('/rwdir/cstrike');
-      status('准备游戏资源', 55);
+      status(uiText('preparingResources'), 55);
       await mountPack(pack, FS, manifest);
       libs.hooks.mount(FS);
       const gameLibraryPath = libs.hooks.resolve('dlls/cs_emscripten_wasm32.wasm');
       const botLibraryPath = libs.hooks.resolve('dlls/yapb_emscripten_wasm32.wasm');
       if (!gameLibraryPath || gameLibraryPath === botLibraryPath || engine.__csGameLibraryPath !== gameLibraryPath) {
-        throw new Error('机器人启动配置不完整。请重新运行最新版一键 CMD。');
+        throw new Error('Bot startup configuration is incomplete. Rebuild the ready package.');
       }
       if (FS.stat(gameLibraryPath).size !== libs.files.get('dlls/cs_emscripten_wasm32.wasm').length) {
-        throw new Error('机器人的 CS 游戏模块未完整挂载。');
+        throw new Error('The CS game module was not mounted completely.');
       }
-      log('机器人游戏模块路径已设置：' + gameLibraryPath);
+      log('Bot game module path set: ' + gameLibraryPath);
 
       // Remove platform-specific cached descriptors from the resource archive.
       try { FS.unlink('/rodir/cstrike/gameinfo.txt'); } catch { /* Optional file. */ }
@@ -261,26 +263,29 @@
       writeFile(FS, '/rodir/cstrike/autoexec.cfg', text.encode(cfg));
       writeFile(FS, '/rwdir/cstrike/config.cfg', text.encode(cfg));
       FS.chdir('/rodir');
-      status('进入游戏', 100);
+      status(uiText('entering'), 100);
       document.body.classList.add('playing');
       await frame();
       globalThis.CS_STATIC_DIAGNOSTICS = { version: VERSION, engine, args, logs, runCommand: command, moduleNames: libs.hooks.names };
       running = true;
       try { engine.callMain(args); } catch (e) { if (e !== 'unwind') throw e; }
-      $('game-state').textContent = '单机模式 · ' + map;
+      $('game-state').textContent = map;
       $('canvas').focus();
-      log('游戏入口已启动。请点击游戏画面并选择队伍。');
+      log('Game started. Click the game view and choose a team.');
       globalThis.CS_OFFLINE_DIAGNOSTICS = globalThis.CS_STATIC_DIAGNOSTICS;
     } catch (e) { fail(e); }
     finally { initializing = false; }
   }
   $('start').addEventListener('click', start);
+  document.addEventListener('launcherlanguagechange', () => {
+    if (!running && !initializing && !$('status').classList.contains('error')) status(uiText($('start').disabled ? 'checking' : 'ready'));
+  });
   for (const button of document.querySelectorAll('.logs-button')) button.addEventListener('click', () => $('console-panel').classList.toggle('open'));
   $('close-console').addEventListener('click', () => { $('console-panel').classList.remove('open'); if (running) $('canvas').focus(); });
   $('restart').addEventListener('click', () => location.reload());
   $('fullscreen').addEventListener('click', async () => {
     try { if (document.fullscreenElement) await document.exitFullscreen(); else await $('canvas').requestFullscreen(); $('canvas').focus(); }
-    catch (e) { log('无法进入全屏：' + e.message); }
+    catch (e) { log('Unable to enter fullscreen: ' + e.message); }
   });
   $('command-form').addEventListener('submit', event => {
     event.preventDefault(); const text = $('command').value.trim(); if (!text) return;
@@ -296,15 +301,14 @@
   } catch { /* Settings persistence is optional. */ }
   (async () => {
     try {
-      if (!supportedProtocol) throw new Error('不支持当前页面协议。');
+      if (!supportedProtocol) throw new Error('This page protocol is not supported.');
       await loadScript('manifest.js');
       const manifest = globalThis.CS_OFFLINE_MANIFEST;
-      if (!manifest || manifest.schema !== 1 || !Array.isArray(manifest.chunks) || !manifest.chunks.length) throw new Error('资源清单未生成或格式无效。');
-      $('start').disabled = false; $('start').textContent = '开始单机游戏';
-      status('游戏包已就绪，资源 ' + (manifest.compressedBytes / 1048576).toFixed(1) + ' MiB。点击开始自动加载。', 0);
-      $('mode').textContent = location.protocol === 'file:' ? '当前：本地文件运行' : '当前：静态网站运行';
-      log('启动器版本：' + VERSION);
-      log('资源清单已读取。模式：' + (location.protocol === 'file:' ? '本地文件' : '静态网站') + '。未启用联机功能。');
+      if (!manifest || manifest.schema !== 1 || !Array.isArray(manifest.chunks) || !manifest.chunks.length) throw new Error('Resource manifest is missing or invalid.');
+      $('start').disabled = false; $('start').textContent = uiText('start');
+      status(uiText('ready'), 0);
+      log('Launcher version: ' + VERSION);
+      log('Resource manifest loaded. Offline mode enabled.');
     } catch (e) { fail(e); }
   })();
 }());
